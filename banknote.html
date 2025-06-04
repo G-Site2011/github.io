@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banknote Bazaar - Lotti di Banconote Varie</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Sfondo grigio chiaro */
+            padding-bottom: 80px; /* Spazio per la barra del carrello fissa */
+        }
+        /* Stili personalizzati per una migliore estetica */
+        .product-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* Blu per i pulsanti */
+            color: white;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Blu più scuro al passaggio del mouse */
+        }
+        .message-box {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #4CAF50; /* Verde per successo */
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+        }
+        .message-box.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        /* Stili per la barra del carrello fissa */
+        .fixed-cart-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1500;
+            box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.1);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+        .fixed-cart-bar.hidden {
+            display: none;
+        }
+        .quantity-control-btn {
+            background-color: #e2e8f0; /* Light gray for quantity buttons */
+            color: #4a5568; /* Darker gray text */
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: bold;
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .quantity-control-btn:hover {
+            background-color: #cbd5e0; /* Slightly darker gray on hover */
+        }
+        /* Stili per il modale di acquisto */
+        .purchase-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+        .purchase-modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .purchase-modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-out;
+        }
+        .purchase-modal.show .purchase-modal-content {
+            transform: translateY(0);
+        }
+        .purchase-modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .purchase-modal-close:hover {
+            color: #333;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Message Box per le notifiche -->
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- Modale di Acquisto -->
+    <div id="purchaseModal" class="purchase-modal">
+        <div class="purchase-modal-content">
+            <span class="purchase-modal-close" onclick="hidePurchaseModal()">&times;</span>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Conferma Acquisto</h2>
+            <p class="text-gray-600 mb-4">Inserisci il tuo numero di conferma (10 cifre) per procedere.</p>
+            <input type="text" id="confirmationNumber" maxlength="10" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline rounded-lg mb-4" placeholder="Numero di 10 cifre">
+            <button class="w-full py-3 px-6 rounded-lg font-semibold btn-primary" onclick="confirmFinalPurchase()">Conferma Acquisto</button>
+        </div>
+    </div>
+
+    <!-- Header Section -->
+    <header class="bg-white shadow-md py-4 px-6 md:px-10 sticky top-0 z-50 rounded-b-lg">
+        <div class="container mx-auto flex justify-between items-center">
+            <!-- Logo/Titolo del Sito -->
+            <a href="#" class="text-3xl font-bold text-gray-800" onclick="renderPage('home')">Banknote Bazaar</a>
+            <!-- Navigazione -->
+            <nav class="flex items-center space-x-6">
+                <ul class="flex space-x-6">
+                    <li><a href="#" class="text-gray-600 hover:text-gray-900 font-medium" onclick="renderPage('home')">Home</a></li>
+                    <li><a href="#" class="text-gray-600 hover:text-gray-900 font-medium" onclick="renderPage('lotti')">Lotti</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Section -->
+    <main id="mainContent" class="container mx-auto py-8 px-4 md:px-0">
+        <!-- Il contenuto verrà caricato qui dinamicamente -->
+    </main>
+
+    <!-- Fixed Cart Bar -->
+    <div id="fixedCartBar" class="fixed-cart-bar hidden">
+        <span class="text-xl font-bold">Totale Carrello: <span id="cartTotalFixed">€0.00</span></span>
+        <button class="py-2 px-5 rounded-lg font-semibold btn-primary" onclick="showPurchaseModal()">Acquista</button>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="bg-gray-800 text-white py-8 mt-12 rounded-t-lg">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2025 Banknote Bazaar. Tutti i diritti riservati.</p>
+            <div class="flex justify-center space-x-4 mt-4">
+                <a href="#" class="text-gray-400 hover:text-white">Privacy Policy</a>
+                <a href="#" class="text-gray-400 hover:text-white">Termini di Servizio</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let cart = []; // Array per memorizzare gli articoli nel carrello
+        let exchangeRates = {}; // Oggetto per memorizzare i tassi di cambio
+        let productQuantities = {}; // Stores the selected quantity for each product on the page
+
+        // Funzione per mostrare un messaggio temporaneo
+        function showMessage(message, type = 'success') {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.className = 'message-box show'; // Resetta le classi e aggiungi 'show'
+            if (type === 'success') {
+                messageBox.style.backgroundColor = '#4CAF50'; // Verde
+            } else if (type === 'error') {
+                messageBox.style.backgroundColor = '#f44336'; // Rosso
+            } else {
+                messageBox.style.backgroundColor = '#2196F3'; // Blu per info
+            }
+
+            // Nascondi il messaggio dopo 3 secondi
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 3000);
+        }
+
+        // Funzione per aggiungere un articolo al carrello
+        function addToCart(product) {
+            const existingItem = cart.find(item => item.id === product.id);
+            if (existingItem) {
+                existingItem.quantity += product.quantity; // Aggiungi la nuova quantità
+            } else {
+                cart.push({ ...product }); // Il prodotto ha già la proprietà quantity
+            }
+            showMessage(`"${product.name}" aggiunto al carrello!`, 'success');
+            renderCart();
+        }
+
+        // Funzione per rimuovere un articolo dal carrello (non più usata direttamente nell'UI attuale)
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            renderCart();
+            showMessage('Articolo rimosso dal carrello.', 'info');
+        }
+
+        // Funzione per aggiornare la quantità di un articolo nel carrello (non più usata direttamente nell'UI attuale)
+        function updateQuantity(productId, change) {
+            const item = cart.find(item => item.id === productId);
+            if (item) {
+                item.quantity += change;
+                if (item.quantity <= 0) {
+                    removeFromCart(productId);
+                } else {
+                    renderCart();
+                }
+            }
+        }
+
+        // Funzione per renderizzare il contenuto del carrello e la barra fissa
+        function renderCart() {
+            const cartTotalFixedElement = document.getElementById('cartTotalFixed');
+            const fixedCartBar = document.getElementById('fixedCartBar');
+
+            let total = 0;
+            cart.forEach(item => {
+                total += item.price * item.quantity;
+            });
+
+            cartTotalFixedElement.textContent = `€${total.toFixed(2)}`;
+
+            if (total > 0) {
+                fixedCartBar.classList.remove('hidden');
+            } else {
+                fixedCartBar.classList.add('hidden');
+            }
+        }
+
+        // Funzione per mostrare il modale di acquisto
+        function showPurchaseModal() {
+            if (cart.length === 0) {
+                showMessage('Il carrello è vuoto. Aggiungi prima dei prodotti!', 'error');
+                return;
+            }
+            document.getElementById('purchaseModal').classList.add('show');
+        }
+
+        // Funzione per nascondere il modale di acquisto
+        function hidePurchaseModal() {
+            document.getElementById('purchaseModal').classList.remove('show');
+            document.getElementById('confirmationNumber').value = ''; // Clear the input
+        }
+
+        // Funzione per confermare l'acquisto finale
+        function confirmFinalPurchase() {
+            const confirmationNumber = document.getElementById('confirmationNumber').value;
+            // Simple validation: 10 digits
+            if (!/^\d{10}$/.test(confirmationNumber)) {
+                showMessage('Per favore, inserisci un numero di 10 cifre valido.', 'error');
+                return;
+            }
+
+            const totalSpent = document.getElementById('cartTotalFixed').textContent;
+            showMessage(`Hai appena acquistato ${totalSpent}! Grazie! Il tuo numero di conferma è: ${confirmationNumber}`, 'success');
+            cart = []; // Svuota il carrello
+            renderCart(); // Aggiorna la visualizzazione del carrello
+            hidePurchaseModal(); // Nascondi il modale
+        }
+
+        // Funzione per caricare i tassi di cambio (ora con dati statici)
+        async function fetchExchangeRates() {
+            // Dati statici per i tassi di cambio per evitare errori di rete
+            exchangeRates = {
+                "USD": 1.0, "EUR": 0.92, "GBP": 0.79, "JPY": 156.0, "CAD": 1.37, "AUD": 1.50, "CHF": 0.90, "CNY": 7.25, "INR": 83.4, "BRL": 5.25, "RUB": 89.0, "ZAR": 18.7, "NZD": 1.63, "MXN": 16.9, "SGD": 1.35, "HKD": 7.82, "SEK": 10.5, "NOK": 10.6, "DKK": 6.8, "PLN": 3.9, "HUF": 360.0, "CZK": 23.0, "ILS": 3.7, "PHP": 58.0, "THB": 36.5, "MYR": 4.7, "IDR": 16200.0, "KRW": 1370.0, "TRY": 32.2, "AED": 3.67, "SAR": 3.75, "QAR": 3.64, "KWD": 0.30, "BHD": 0.37, "OMR": 0.38, "EGP": 47.5, "CLP": 930.0, "COP": 3900.0, "ARS": 900.0, "PEN": 3.7, "UYU": 39.0, "PYG": 7500.0, "DOP": 58.0, "CUP": 24.0, "XCD": 2.7, "JMD": 155.0, "TTD": 6.7, "BBD": 2.0, "BSD": 1.0, "BZD": 2.0, "FJD": 2.2, "LKR": 300.0, "PKR": 278.0, "BDT": 110.0, "NPR": 133.0, "MVR": 15.4, "SCR": 13.5, "LBP": 1500.0, "SYP": 13000.0, "IQD": 1310.0, "IRR": 42000.0, "AFN": 70.0, "MMK": 2100.0, "LAK": 21000.0, "KHR": 4100.0, "VND": 25400.0, "MNT": 3400.0, "KZT": 445.0, "UZS": 12600.0, "KGS": 87.0, "TJS": 10.9, "AZN": 1.7, "GEL": 2.7, "AMD": 385.0, "BYN": 3.2, "UAH": 40.0, "MDL": 17.8, "ALL": 95.0, "RSD": 108.0, "MKD": 57.0, "BGN": 1.8, "RON": 4.9, "HRK": 7.5, "BAM": 1.8, "ISK": 138.0, "GHS": 13.5, "NGN": 1400.0, "XOF": 615.0, "XAF": 615.0, "CDF": 2700.0, "ZMW": 26.0, "KES": 130.0, "TZS": 2500.0, "UGX": 3800.0, "RWF": 1300.0, "BIF": 2800.0, "DJF": 178.0, "ETB": 57.0, "SOS": 570.0, "ERN": 15.0, "SDG": 600.0, "LYD": 4.8, "DZD": 135.0, "MAD": 10.0, "TND": 3.1, "MRO": 357.0, "SLL": 22000.0, "LRD": 190.0, "GMD": 68.0, "CVE": 100.0, "GNF": 8500.0, "MLF": 615.0, "SNF": 615.0, "KMF": 460.0, "MGA": 4500.0, "MWK": 1700.0, "MZN": 64.0, "NAD": 18.7, "SSP": 1000.0, "SZL": 18.7, "ZWL": 36000.0, "PGK": 3.9, "SBD": 8.5, "VUV": 120.0, "WST": 2.7, "TOP": 2.3, "KID": 1.50, "TVD": 1.50, "XPF": 119.0, "GIP": 0.79, "JEP": 0.79, "IMP": 0.79, "GGP": 0.79, "FKP": 0.79, "SHP": 0.79, "CUC": 1.0, "XBT": 0.000015, "ETH": 0.0003, "XAU": 0.00045, "XAG": 0.015, "XPT": 0.00001, "XDR": 0.75,
+            };
+            populateCurrencySelectors();
+        }
+
+        // Funzione per popolare i selettori di valuta
+        function populateCurrencySelectors() {
+            const fromCurrencySelect = document.getElementById('fromCurrency');
+            const toCurrencySelect = document.getElementById('toCurrency');
+
+            if (!fromCurrencySelect || !toCurrencySelect) return;
+
+            // Clear existing options
+            fromCurrencySelect.innerHTML = '';
+            toCurrencySelect.innerHTML = '';
+
+            const currencies = Object.keys(exchangeRates).sort();
+            currencies.forEach(currency => {
+                const option1 = document.createElement('option');
+                option1.value = currency;
+                option1.textContent = currency;
+                fromCurrencySelect.appendChild(option1);
+
+                const option2 = document.createElement('option');
+                option2.value = currency;
+                option2.textContent = currency;
+                toCurrencySelect.appendChild(option2);
+            });
+
+            // Set default values
+            fromCurrencySelect.value = 'USD';
+            toCurrencySelect.value = 'EUR';
+        }
+
+        // Funzione per convertire la valuta
+        function convertCurrency() {
+            const amount = parseFloat(document.getElementById('amount').value);
+            const fromCurrency = document.getElementById('fromCurrency').value;
+            const toCurrency = document.getElementById('toCurrency').value;
+            const resultElement = document.getElementById('conversionResult');
+
+            if (isNaN(amount) || amount <= 0) {
+                resultElement.textContent = 'Inserisci un importo valido.';
+                return;
+            }
+            if (!exchangeRates[fromCurrency] || !exchangeRates[toCurrency]) {
+                resultElement.textContent = 'Valute non disponibili per la conversione.';
+                return;
+            }
+
+            const rateFromBase = exchangeRates[fromCurrency]; // Tasso della valuta di partenza rispetto alla base (USD)
+            const rateToBase = exchangeRates[toCurrency];     // Tasso della valuta di destinazione rispetto alla base (USD)
+
+            // Converti l'importo nella valuta base (USD) e poi nella valuta di destinazione
+            // Esempio: 10 EUR -> USD (10 / EUR_rate) -> JPY (USD_amount * JPY_rate)
+            const amountInBase = amount / rateFromBase;
+            const convertedAmount = amountInBase * rateToBase;
+
+            resultElement.textContent = `${amount.toFixed(2)} ${fromCurrency} = ${convertedAmount.toFixed(2)} ${toCurrency}`;
+        }
+
+        // Funzione per renderizzare la pagina Home
+        function renderHomePage() {
+            const mainContent = document.getElementById('mainContent');
+            mainContent.innerHTML = `
+                <h1 class="text-4xl font-extrabold text-gray-900 mb-8 text-center">Benvenuto in Banknote Bazaar!</h1>
+                <div class="bg-white rounded-xl shadow-lg p-8 mb-8">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Convertitore di Valuta</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div>
+                            <label for="amount" class="block text-gray-700 text-sm font-bold mb-2">Importo:</label>
+                            <input type="number" id="amount" value="1" min="0.01" step="0.01" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline rounded-lg">
+                        </div>
+                        <div>
+                            <label for="fromCurrency" class="block text-gray-700 text-sm font-bold mb-2">Da Valuta:</label>
+                            <select id="fromCurrency" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline rounded-lg"></select>
+                        </div>
+                        <div>
+                            <label for="toCurrency" class="block text-gray-700 text-sm font-bold mb-2">A Valuta:</label>
+                            <select id="toCurrency" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline rounded-lg"></select>
+                        </div>
+                    </div>
+                    <button class="mt-6 py-3 px-6 rounded-lg font-semibold btn-primary w-full" onclick="convertCurrency()">Converti</button>
+                    <p id="conversionResult" class="text-xl font-bold text-gray-900 mt-6 text-center"></p>
+                </div>
+
+                <div class="text-center mt-12">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-4">Scopri le Nostre Banconote!</h2>
+                    <p class="text-gray-700 text-lg">Esplora la nostra vasta collezione di banconote singole, perfette per collezionisti e appassionati.</p>
+                    <button class="mt-6 py-4 px-8 rounded-lg font-semibold btn-primary text-xl" onclick="renderPage('lotti')">Vedi tutte le Banconote</button>
+                </div>
+            `;
+            fetchExchangeRates(); // Carica i tassi di cambio (ora statici) quando la home page è renderizzata
+        }
+
+        // Funzione per renderizzare la pagina Lotti
+        function renderLottiPage() {
+            const mainContent = document.getElementById('mainContent');
+            let productsHtml = '';
+
+            // Definizione delle valute e dei tagli disponibili raggruppati per "forza"
+            const categorizedCurrencies = {
+                "Valute Forti": {
+                    "USD": [1, 2, 5, 10, 20, 50, 100],
+                    "EUR": [5, 10, 20, 50, 100, 200, 500],
+                    "GBP": [5, 10, 20, 50],
+                    "CHF": [10, 20, 50, 100, 200, 1000],
+                    "CAD": [5, 10, 20, 50, 100],
+                    "AUD": [5, 10, 20, 50, 100],
+                    "JPY": [1000, 2000, 5000, 10000] // JPY è inclusa qui per la sua importanza globale
+                },
+                "Valute Medie": {
+                    "CNY": [1, 5, 10, 20, 50, 100],
+                    "INR": [10, 20, 50, 100, 200, 500, 2000],
+                    "BRL": [2, 5, 10, 20, 50, 100, 200],
+                    "RUB": [50, 100, 200, 500, 1000, 2000, 5000],
+                    "ZAR": [10, 20, 50, 100, 200],
+                    "MXN": [20, 50, 100, 200, 500, 1000],
+                    "TRY": [5, 10, 20, 50, 100, 200]
+                },
+                "Valute Esotiche/Deboli": {
+                    "IDR": [1000, 2000, 5000, 10000, 20000, 50000, 100000],
+                    "VND": [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000],
+                    "PYG": [2000, 5000, 10000, 20000, 50000, 100000],
+                    "LBP": [1000, 5000, 10000, 20000, 50000, 100000],
+                    "SOS": [500, 1000, 2000, 5000, 10000]
+                }
+            };
+
+            // Reset productQuantities for the new page render
+            productQuantities = {};
+
+            for (const category in categorizedCurrencies) {
+                productsHtml += `<h2 class="text-3xl font-bold text-gray-900 mt-10 mb-6 text-center">${category}</h2>`;
+                productsHtml += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mb-10">`;
+
+                const currenciesInThisCategory = categorizedCurrencies[category];
+                for (const currencyCode in currenciesInThisCategory) {
+                    const denominations = currenciesInThisCategory[currencyCode];
+                    const baseRate = exchangeRates[currencyCode]; // Tasso della valuta rispetto alla base (USD)
+                    const eurRate = exchangeRates['EUR']; // Tasso dell'Euro rispetto alla base (USD)
+
+                    if (!baseRate || !eurRate) {
+                        console.warn(`Tassi di cambio non disponibili per ${currencyCode}. Saltando.`);
+                        continue;
+                    }
+
+                    denominations.forEach(denomination => {
+                        const priceInEUR = (denomination / baseRate) * eurRate;
+                        const productName = `Banconota da ${denomination} ${currencyCode}`;
+                        const productId = `${currencyCode.toLowerCase()}-${denomination}`;
+                        const imageUrl = `https://placehold.co/600x400/${Math.floor(Math.random()*16777215).toString(16)}/FFFFFF?text=${currencyCode}${denomination}`; // Colore casuale per l'immagine
+
+                        // Initialize quantity for this product
+                        productQuantities[productId] = 1;
+
+                        productsHtml += `
+                            <div class="bg-white rounded-xl shadow-lg overflow-hidden product-card">
+                                <img src="${imageUrl}" alt="${productName}" class="w-full h-48 object-cover">
+                                <div class="p-6">
+                                    <h2 class="text-xl font-semibold text-gray-800 mb-2">${productName}</h2>
+                                    <p class="text-gray-600 text-sm mb-4">Singola banconota da ${denomination} ${currencyCode}.</p>
+                                    <div class="flex justify-between items-center mb-4">
+                                        <span class="text-3xl font-bold text-gray-900">€${priceInEUR.toFixed(2)}</span>
+                                    </div>
+                                    <div class="flex items-center justify-center mb-4 space-x-2">
+                                        <button class="quantity-control-btn" data-action="decrease" data-product-id="${productId}">-</button>
+                                        <span id="quantity-display-${productId}" class="text-xl font-semibold">1</span>
+                                        <button class="quantity-control-btn" data-action="increase" data-product-id="${productId}">+</button>
+                                    </div>
+                                    <button class="w-full py-3 px-6 rounded-lg font-semibold btn-primary add-to-cart-btn" data-product='{"id": "${productId}", "name": "${productName}", "price": ${priceInEUR.toFixed(2)}}'>Aggiungi al Carrello</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                productsHtml += `</div>`; // Close grid for the category
+            }
+
+
+            mainContent.innerHTML = `
+                <h1 class="text-4xl font-extrabold text-gray-900 mb-8 text-center">Banconote Singole Disponibili</h1>
+                ${productsHtml}
+            `;
+            // Aggiungi i listener di eventi ai nuovi pulsanti "Aggiungi al Carrello" dopo il rendering
+            attachAddToCartListeners();
+            attachQuantityControlListeners(); // Attach listeners for +/- buttons
+        }
+
+        // Funzione per allegare i listener di eventi ai pulsanti "Aggiungi al Carrello"
+        function attachAddToCartListeners() {
+            const addToCartButtons = document.querySelectorAll('.add-to-cart-btn');
+            addToCartButtons.forEach(button => {
+                button.removeEventListener('click', handleAddToCartClick); // Rimuovi i listener precedenti per evitare duplicati
+                button.addEventListener('click', handleAddToCartClick);
+            });
+        }
+
+        // Funzione per allegare i listener di eventi ai pulsanti +/- della quantità
+        function attachQuantityControlListeners() {
+            const quantityControlButtons = document.querySelectorAll('.quantity-control-btn');
+            quantityControlButtons.forEach(button => {
+                button.removeEventListener('click', handleQuantityControlClick); // Rimuovi i listener precedenti
+                button.addEventListener('click', handleQuantityControlClick);
+            });
+        }
+
+        // Handler per il click sui pulsanti +/- della quantità
+        function handleQuantityControlClick(event) {
+            const productId = event.target.dataset.productId;
+            const action = event.target.dataset.action;
+            const quantityDisplay = document.getElementById(`quantity-display-${productId}`);
+
+            let currentQuantity = productQuantities[productId];
+
+            if (action === 'increase') {
+                currentQuantity++;
+            } else if (action === 'decrease') {
+                currentQuantity--;
+            }
+
+            if (currentQuantity < 1) {
+                currentQuantity = 1; // Impedisci che la quantità scenda sotto 1
+            }
+
+            productQuantities[productId] = currentQuantity;
+            quantityDisplay.textContent = currentQuantity;
+        }
+
+        // Handler per il click sul pulsante "Aggiungi al Carrello"
+        function handleAddToCartClick(event) {
+            const productData = JSON.parse(event.currentTarget.dataset.product);
+            const productId = productData.id;
+            const quantity = productQuantities[productId] || 1; // Ottieni la quantità selezionata
+
+            // Passa la quantità ad addToCart
+            addToCart({ ...productData, quantity: quantity });
+
+            // Resetta la quantità visualizzata sulla scheda a 1 dopo l'aggiunta al carrello
+            if (document.getElementById(`quantity-display-${productId}`)) {
+                document.getElementById(`quantity-display-${productId}`).textContent = 1;
+                productQuantities[productId] = 1;
+            }
+        }
+
+        // Funzione per renderizzare la pagina corrente
+        function renderPage(page) {
+            if (page === 'home') {
+                renderHomePage();
+            } else if (page === 'lotti') {
+                renderLottiPage();
+            }
+        }
+
+        // Carica la pagina Home all'avvio
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPage('home');
+            renderCart(); // Assicurati che la barra del carrello sia renderizzata correttamente all'avvio
+        });
+    </script>
+</body>
+</html>
